@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -24,7 +25,8 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
   bool _isFetchingLocation = false;
   String? _locationLabel;
   String? _errorMessage;
-  final List<BusInfo> _nearbyBuses = [];
+  final TextEditingController _busSearchController = TextEditingController();
+  BusInfo? _searchedBus;
 
   Future<void> _fetchLocationAndNearbyBuses() async {
     if (_isFetchingLocation) return;
@@ -56,7 +58,6 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
             '${position.latitude.toStringAsFixed(3)}, ${position.longitude.toStringAsFixed(3)}';
       });
     } catch (e) {
-      print("LOCATION ERROR: $e");
       setState(() {
         _errorMessage = e.toString();
       });
@@ -66,6 +67,51 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
           _isFetchingLocation = false;
         });
       }
+    }
+  }
+
+  Future<void> _searchBusByNumber() async {
+    final query = _busSearchController.text.trim().toUpperCase();
+    if (query.isEmpty) {
+      setState(() {
+        _searchedBus = null;
+        _errorMessage = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _errorMessage = null;
+      _searchedBus = null;
+    });
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('buses')
+          .where('busNumber', isEqualTo: query)
+          .limit(1)
+          .get();
+      if (snap.docs.isEmpty) {
+        setState(() {
+          _errorMessage = 'No bus found with that number.';
+        });
+        return;
+      }
+
+      final data = snap.docs.first.data();
+      setState(() {
+        _searchedBus = BusInfo(
+          name: data['routeName'] as String? ??
+              data['busName'] as String? ??
+              'Bus $query',
+          number: data['busNumber'] as String? ?? query,
+          distanceKm: 0,
+        );
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to fetch bus details. Please try again.';
+      });
     }
   }
 
@@ -223,14 +269,28 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
                     color: const Color(0xFF1A1A1A),
                     borderRadius: BorderRadius.circular(30),
                   ),
-                  child: const TextField(
-                    style: TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      icon: Icon(Icons.search, color: Colors.white54),
-                      hintText: 'Search by Bus No.',
-                      hintStyle: TextStyle(color: Colors.white54),
-                      border: InputBorder.none,
-                    ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.search, color: Colors.white54),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _busSearchController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            hintText: 'Search by Bus No.',
+                            hintStyle: TextStyle(color: Colors.white54),
+                            border: InputBorder.none,
+                          ),
+                          onSubmitted: (_) => _searchBusByNumber(),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward_ios,
+                            color: Colors.white54, size: 18),
+                        onPressed: _searchBusByNumber,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 30),
@@ -245,11 +305,10 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
                         color: Colors.white,
                       ),
                     ),
-                    Text('See more', style: TextStyle(color: Colors.white54)),
                   ],
                 ),
                 const SizedBox(height: 20),
-                if (_nearbyBuses.isEmpty)
+                if (_searchedBus == null)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
@@ -273,7 +332,7 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
                         const SizedBox(width: 15),
                         const Expanded(
                           child: Text(
-                            'No nearby buses yet.\nTap "Use my location" to find buses around you.',
+                            'Search for a bus number to see route and status here.',
                             style: TextStyle(
                               color: Colors.white54,
                               fontSize: 16,
@@ -284,11 +343,7 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
                     ),
                   )
                 else
-                  Column(
-                    children: _nearbyBuses
-                        .map((bus) => _BusCard(bus: bus))
-                        .toList(),
-                  ),
+                  _BusCard(bus: _searchedBus!),
                 const SizedBox(height: 30),
               ],
             ),
