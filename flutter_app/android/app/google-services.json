@@ -1,26 +1,65 @@
 {
   "project_info": {
-    "project_number": "39552685714",
-    "project_id": "busbee-udaya-2026",
-    "storage_bucket": "busbee-udaya-2026.firebasestorage.app"
+    "project_number": "485348936757",
+    "project_id": "bus-tracking-system-fedfe",
+    "storage_bucket": "bus-tracking-system-fedfe.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:39552685714:android:0e299dc934e00d1878f84b",
+        "mobilesdk_app_id": "1:485348936757:android:2a8aa42417b96aed06357c",
         "android_client_info": {
-          "package_name": "com.example.flutter_app"
+          "package_name": "com.example.bus_tracking"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "485348936757-opb5kmai28b6ev06v9o677jpmi5bv1gv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyCdgNQ9RVHKrcL25vqVHkxgLaFRKbM-hhY"
+          "current_key": "AIzaSyDUfvFh6obIzAJfHVoSlE4Q5ydIlSHI60s"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "485348936757-opb5kmai28b6ev06v9o677jpmi5bv1gv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:485348936757:android:462bca0960bd76b906357c",
+        "android_client_info": {
+          "package_name": "com.example.flutter_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "485348936757-opb5kmai28b6ev06v9o677jpmi5bv1gv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUfvFh6obIzAJfHVoSlE4Q5ydIlSHI60s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "485348936757-opb5kmai28b6ev06v9o677jpmi5bv1gv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
