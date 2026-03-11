@@ -11,6 +11,7 @@ class AddBusScreen extends StatefulWidget {
 
 class _AddBusScreenState extends State<AddBusScreen> {
   final _formKey = GlobalKey<FormState>();
+
   final TextEditingController _busNameController = TextEditingController();
   final TextEditingController _busNumberController = TextEditingController();
 
@@ -29,6 +30,7 @@ class _AddBusScreenState extends State<AddBusScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final user = FirebaseAuth.instance.currentUser;
+
     if (user == null) {
       setState(() {
         _errorMessage = 'You are not logged in.';
@@ -70,11 +72,11 @@ class _AddBusScreenState extends State<AddBusScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF020617),
       appBar: AppBar(
         backgroundColor: Colors.black,
         title: const Text('Add Bus'),
       ),
-      backgroundColor: const Color(0xFF020617),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -91,7 +93,9 @@ class _AddBusScreenState extends State<AddBusScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+
                 const SizedBox(height: 16),
+
                 TextFormField(
                   controller: _busNameController,
                   style: const TextStyle(color: Colors.white),
@@ -112,7 +116,9 @@ class _AddBusScreenState extends State<AddBusScreen> {
                     return null;
                   },
                 ),
+
                 const SizedBox(height: 14),
+
                 TextFormField(
                   controller: _busNumberController,
                   style: const TextStyle(color: Colors.white),
@@ -133,7 +139,9 @@ class _AddBusScreenState extends State<AddBusScreen> {
                     return null;
                   },
                 ),
+
                 const SizedBox(height: 20),
+
                 if (_errorMessage != null) ...[
                   Text(
                     _errorMessage!,
@@ -144,7 +152,9 @@ class _AddBusScreenState extends State<AddBusScreen> {
                   ),
                   const SizedBox(height: 12),
                 ],
+
                 const Spacer(),
+
                 SizedBox(
                   width: double.infinity,
                   height: 52,
