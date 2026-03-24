@@ -15,18 +15,25 @@ class DriverTrackingScreen extends StatefulWidget {
 }
 
 class _DriverTrackingScreenState extends State<DriverTrackingScreen> {
-  StreamSubscription<Position>? _sub;
+  Timer? _timer;
   bool _isStarting = false;
   bool _isTracking = false;
+  bool _isSending = false;
+  bool _isSavingManual = false;
   String? _status;
   Position? _lastPosition;
   DateTime? _lastSentAt;
 
   @override
   void dispose() {
-    _sub?.cancel();
+    _timer?.cancel();
     super.dispose();
   }
+
+  static const _locationSettings = LocationSettings(
+    accuracy: LocationAccuracy.high,
+    distanceFilter: 10, // meters
+  );
 
   Future<void> _ensurePermission() async {
     final enabled = await Geolocator.isLocationServiceEnabled();
@@ -46,6 +53,62 @@ class _DriverTrackingScreenState extends State<DriverTrackingScreen> {
     }
   }
 
+  DocumentReference<Map<String, dynamic>> _busLocationDoc(String uid) {
+    final docId = widget.busId ?? uid;
+    return FirebaseFirestore.instance.collection('bus_locations').doc(docId);
+  }
+
+  Future<void> _pushCurrentLocation(User user) async {
+    if (_isSending) return;
+    _isSending = true;
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: _locationSettings,
+      );
+      _lastPosition = pos;
+
+      await _busLocationDoc(user.uid).set(
+        <String, Object?>{
+          'driverUid': user.uid,
+          if (widget.busId != null) 'busId': widget.busId,
+          'lat': pos.latitude,
+          'lng': pos.longitude,
+          'accuracy': pos.accuracy,
+          'speed': pos.speed,
+          'heading': pos.heading,
+          'sentAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _lastSentAt = DateTime.now();
+        _status = 'Live location sent';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _status = 'Failed to send: $e';
+      });
+      rethrow;
+    } finally {
+      _isSending = false;
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  Future<void> _toggleLiveFromChip() async {
+    if (_isStarting) return;
+    if (_isTracking) {
+      await _stopTracking();
+      return;
+    }
+    await _startTracking();
+  }
+
   Future<void> _startTracking() async {
     if (_isStarting || _isTracking) return;
     setState(() {
@@ -60,58 +123,26 @@ class _DriverTrackingScreenState extends State<DriverTrackingScreen> {
         throw Exception('Not logged in.');
       }
 
-      const settings = LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10, // meters
-      );
+      Future<void> sendNow() async {
+        try {
+          await _pushCurrentLocation(user);
+        } catch (_) {
+          // Error already surfaced via _status in _pushCurrentLocation
+        }
+      }
 
-      final docId = widget.busId ?? user.uid;
-      final doc =
-          FirebaseFirestore.instance.collection('bus_locations').doc(docId);
+      // Send immediately when tracking starts.
+      await sendNow();
 
-      _sub = Geolocator.getPositionStream(locationSettings: settings).listen(
-        (pos) async {
-          _lastPosition = pos;
-          try {
-            await doc.set(
-              <String, Object?>{
-                'driverUid': user.uid,
-                if (widget.busId != null) 'busId': widget.busId,
-                'lat': pos.latitude,
-                'lng': pos.longitude,
-                'accuracy': pos.accuracy,
-                'speed': pos.speed,
-                'heading': pos.heading,
-                'sentAt': FieldValue.serverTimestamp(),
-              },
-              SetOptions(merge: true),
-            );
-            if (!mounted) return;
-            setState(() {
-              _lastSentAt = DateTime.now();
-              _status = 'Live location sent';
-            });
-          } catch (e) {
-            if (!mounted) return;
-            setState(() {
-              _status = 'Failed to send: $e';
-            });
-          }
-          if (!mounted) return;
-          setState(() {});
-        },
-        onError: (e) {
-          if (!mounted) return;
-          setState(() {
-            _status = 'Tracking error: $e';
-          });
-        },
-      );
+      // Auto-save current GPS every 4 seconds.
+      _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+        sendNow();
+      });
 
       if (!mounted) return;
       setState(() {
         _isTracking = true;
-        _status = 'Tracking started';
+        _status = 'Live on — auto-update every 4 seconds (tap LIVE to stop)';
       });
     } catch (e) {
       setState(() {
@@ -126,9 +157,47 @@ class _DriverTrackingScreenState extends State<DriverTrackingScreen> {
     }
   }
 
+  Future<void> _saveLocationNow() async {
+    if (_isSavingManual) return;
+    setState(() {
+      _isSavingManual = true;
+    });
+    try {
+      await _ensurePermission();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('Not logged in.');
+      }
+      await _pushCurrentLocation(user);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location saved'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Save failed: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingManual = false;
+        });
+      }
+    }
+  }
+
   Future<void> _stopTracking() async {
-    await _sub?.cancel();
-    _sub = null;
+    _timer?.cancel();
+    _timer = null;
     if (!mounted) return;
     setState(() {
       _isTracking = false;
@@ -231,30 +300,65 @@ class _DriverTrackingScreenState extends State<DriverTrackingScreen> {
                     style: TextStyle(fontSize: 14, color: Colors.white70),
                   ),
 
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _isTracking
-                          ? Colors.green.withOpacity(0.15)
-                          : Colors.white10,
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _isStarting ? null : _toggleLiveFromChip,
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: _isTracking
-                            ? Colors.green.withOpacity(0.4)
-                            : Colors.white12,
-                      ),
-                    ),
-                    child: Text(
-                      _isTracking ? 'LIVE' : 'OFF',
-                      style: TextStyle(
-                        color: _isTracking
-                            ? Colors.greenAccent
-                            : Colors.white60,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _isTracking
+                              ? Colors.green.withValues(alpha: 0.15)
+                              : Colors.white10,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: _isTracking
+                                ? Colors.green.withValues(alpha: 0.4)
+                                : Colors.white24,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_isStarting) ...[
+                              const SizedBox(
+                                height: 14,
+                                width: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            Text(
+                              _isTracking ? 'LIVE' : 'OFF',
+                              style: TextStyle(
+                                color: _isTracking
+                                    ? Colors.greenAccent
+                                    : Colors.white70,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            if (!_isStarting) ...[
+                              const SizedBox(width: 6),
+                              Icon(
+                                _isTracking
+                                    ? Icons.toggle_on
+                                    : Icons.toggle_off,
+                                size: 18,
+                                color: _isTracking
+                                    ? Colors.greenAccent
+                                    : Colors.white54,
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -302,23 +406,19 @@ class _DriverTrackingScreenState extends State<DriverTrackingScreen> {
 
         const SizedBox(height: 30),
 
-        /// START / STOP BUTTON
+        /// Save current GPS once (manual); live updates still use OFF/LIVE chip.
         SizedBox(
           height: 54,
-          child: ElevatedButton(
+          child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  _isTracking ? Colors.redAccent : Colors.blueAccent,
+              backgroundColor: const Color(0xFF2E7D32),
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            onPressed: _isStarting
-                ? null
-                : _isTracking
-                    ? _stopTracking
-                    : _startTracking,
-            child: _isStarting
+            onPressed: _isSavingManual ? null : _saveLocationNow,
+            icon: _isSavingManual
                 ? const SizedBox(
                     height: 20,
                     width: 20,
@@ -327,13 +427,24 @@ class _DriverTrackingScreenState extends State<DriverTrackingScreen> {
                       color: Colors.white,
                     ),
                   )
-                : Text(
-                    _isTracking ? 'Stop tracking' : 'Start tracking',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                : const Icon(Icons.save_rounded),
+            label: Text(
+              _isSavingManual ? 'Saving...' : 'Save',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _isTracking
+              ? 'Tap LIVE to stop automatic updates. Use Save anytime for an extra send.'
+              : 'Tap OFF to start live updates every 4 seconds.',
+          style: const TextStyle(
+            color: Colors.white38,
+            fontSize: 12,
           ),
         ),
       ],
