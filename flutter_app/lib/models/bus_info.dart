@@ -1,4 +1,5 @@
 class BusInfo {
+  final String id;
   final String name;
   final String number;
   final double distanceKm;
@@ -7,6 +8,7 @@ class BusInfo {
   final List<String> stops;
 
   const BusInfo({
+    required this.id,
     required this.name,
     required this.number,
     required this.distanceKm,

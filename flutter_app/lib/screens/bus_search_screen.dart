@@ -63,6 +63,7 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
   }
 
   BusInfo _mapBusFromFirestore(
+    String busId,
     Map<String, dynamic> data, {
     double distanceKm = 0,
   }) {
@@ -73,6 +74,7 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
         (data['busNumber'] as String?)?.trim().toUpperCase() ?? 'UNKNOWN';
 
     return BusInfo(
+      id: busId,
       name: (data['busName'] as String?)?.trim().isNotEmpty == true
           ? (data['busName'] as String).trim()
           : (data['routeName'] as String?)?.trim().isNotEmpty == true
@@ -196,7 +198,7 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
       final data = snap.docs.first.data();
 
       setState(() {
-        _trackedBuses = [_mapBusFromFirestore(data)];
+        _trackedBuses = [_mapBusFromFirestore(snap.docs.first.id, data)];
       });
     } catch (e) {
       setState(() {
@@ -258,7 +260,7 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
         );
 
         if (matches) {
-          matchedBuses.add(_mapBusFromFirestore(data));
+          matchedBuses.add(_mapBusFromFirestore(doc.id, data));
         }
       }
 
