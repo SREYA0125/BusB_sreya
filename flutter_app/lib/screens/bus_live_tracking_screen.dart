@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../models/bus_info.dart';
@@ -17,6 +18,7 @@ class BusLiveTrackingScreen extends StatefulWidget {
 class _BusLiveTrackingScreenState extends State<BusLiveTrackingScreen> {
   GoogleMapController? _mapController;
   bool _hasCenteredInitialCamera = false;
+  bool _canShowMyLocation = false;
   bool _isResolvingRoute = false;
   String? _routeError;
 
@@ -27,6 +29,7 @@ class _BusLiveTrackingScreenState extends State<BusLiveTrackingScreen> {
   @override
   void initState() {
     super.initState();
+    _requestMyLocationPermission();
     _resolveRoutePolyline();
   }
 
@@ -118,6 +121,26 @@ class _BusLiveTrackingScreenState extends State<BusLiveTrackingScreen> {
         _routeError = 'Could not resolve full route points for polyline.';
       }
     });
+  }
+
+  Future<void> _requestMyLocationPermission() async {
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _canShowMyLocation = permission == LocationPermission.always ||
+            permission == LocationPermission.whileInUse;
+      });
+    } catch (_) {
+      // If permission can't be obtained, we still show bus marker + route.
+    }
   }
 
   Set<Marker> _buildMarkers({
@@ -229,8 +252,8 @@ class _BusLiveTrackingScreenState extends State<BusLiveTrackingScreen> {
                     target: busLatLng,
                     zoom: 16.5,
                   ),
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
+                  myLocationEnabled: _canShowMyLocation,
+                  myLocationButtonEnabled: _canShowMyLocation,
                   compassEnabled: true,
                   zoomControlsEnabled: false,
                   markers: {
