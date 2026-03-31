@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'driver_bus_dashboard_screen.dart';
 import 'driver_sign_up_screen.dart';
@@ -48,6 +49,10 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
         email: email,
         password: password,
       );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_role', 'driver');
+
       if (!mounted) return;
 
       Navigator.pushReplacement(

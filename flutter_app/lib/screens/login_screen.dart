@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'sign_up_screen.dart';
 import 'bus_search_screen.dart';
 
@@ -47,6 +48,10 @@ class _LoginScreenState extends State<LoginScreen> {
         email: email,
         password: password,
       );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_role', 'passenger');
+
       if (!mounted) return;
 
       Navigator.pushReplacement(
