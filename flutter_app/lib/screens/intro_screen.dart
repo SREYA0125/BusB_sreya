@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'role_selection_screen.dart';
-
+import 'widgets/hover_button.dart';
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
 
@@ -108,49 +108,41 @@ class _IntroScreenState extends State<IntroScreen>
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Center(
-                  child: SizedBox(
+                  child: HoverButton(
                     width: 220, // 👈 only this controls button length
                     height: 55,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          transitionDuration:
+                              const Duration(milliseconds: 500),
+                          pageBuilder: (
+                            context,
+                            animation,
+                            secondaryAnimation,
+                          ) =>
+                              const RoleSelectionScreen(),
+                          transitionsBuilder: (
+                            context,
+                            animation,
+                            secondaryAnimation,
+                            child,
+                          ) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
                         ),
-                      ),
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          PageRouteBuilder(
-                            transitionDuration:
-                                const Duration(milliseconds: 500),
-                            pageBuilder: (
-                              context,
-                              animation,
-                              secondaryAnimation,
-                            ) =>
-                                const RoleSelectionScreen(),
-                            transitionsBuilder: (
-                              context,
-                              animation,
-                              secondaryAnimation,
-                              child,
-                            ) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              );
-                            },
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        "Get Started",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                      );
+                    },
+                    child: const Text(
+                      "Get Started",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),
