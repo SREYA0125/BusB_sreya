@@ -154,7 +154,7 @@ class _RoleCardState extends State<_RoleCard> {
       onExit: (_) => setState(() => _isHovering = false),
       cursor: SystemMouseCursors.click,
       child: AnimatedScale(
-        scale: _isHovering ? 1.05 : 1.0,
+        scale: _isHovering ? 1.02 : 1.0,
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutQuad,
         child: GestureDetector(
@@ -168,9 +168,9 @@ class _RoleCardState extends State<_RoleCard> {
               boxShadow: [
                 BoxShadow(
                   color: _isHovering
-                      ? Colors.blueAccent.withOpacity(0.5)
+                      ? Colors.blueAccent.withOpacity(0.4)
                       : Colors.black.withOpacity(0.45),
-                  blurRadius: _isHovering ? 25 : 18,
+                  blurRadius: _isHovering ? 20 : 18,
                   offset: const Offset(0, 10),
                 ),
               ],
