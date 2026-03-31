@@ -4,12 +4,20 @@ import 'package:flutter/material.dart';
 
 import 'add_bus_screen.dart';
 import 'driver_route_screen.dart';
+import 'role_selection_screen.dart';
 
 class DriverBusDashboardScreen extends StatelessWidget {
   const DriverBusDashboardScreen({super.key});
 
-  Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
+  void _logout(BuildContext context) {
+    // Fire and forget the strict sign out to avoid blocking UI or context unmounting
+    FirebaseAuth.instance.signOut();
+    
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -91,8 +99,8 @@ class DriverBusDashboardScreen extends StatelessWidget {
                       IconButton(
                         tooltip: 'Logout',
                         icon: const Icon(Icons.logout, color: Colors.white70),
-                        onPressed: () async {
-                          await _logout();
+                        onPressed: () {
+                          _logout(context);
                         },
                       ),
                     ],
