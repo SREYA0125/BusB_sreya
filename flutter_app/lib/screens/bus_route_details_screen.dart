@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -42,11 +43,37 @@ class BusRouteDetailsScreen extends StatelessWidget {
       return;
     }
 
+    String? busLocationParam;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('bus_locations')
+          .doc(bus.id)
+          .get();
+      
+      if (doc.exists) {
+        final data = doc.data()!;
+        final lat = data['lat'];
+        final lng = data['lng'];
+        if (lat != null && lng != null) {
+          busLocationParam = '$lat,$lng';
+        }
+      }
+    } catch (_) {
+      // Ignore and proceed without live location
+    }
+
     final origin = routePoints.first;
     final destination = routePoints.last;
-    final waypoints = routePoints.length > 2
-        ? routePoints.sublist(1, routePoints.length - 1).join('|')
-        : null;
+    
+    final List<String> waypointsList = [];
+    if (busLocationParam != null) {
+      waypointsList.add(busLocationParam);
+    }
+    if (routePoints.length > 2) {
+      waypointsList.addAll(routePoints.sublist(1, routePoints.length - 1));
+    }
+    
+    final waypoints = waypointsList.isNotEmpty ? waypointsList.join('|') : null;
 
     final uri = Uri.https(
       'www.google.com',
@@ -55,7 +82,7 @@ class BusRouteDetailsScreen extends StatelessWidget {
         'api': '1',
         'origin': origin,
         'destination': destination,
-        if (waypoints != null && waypoints.isNotEmpty) 'waypoints': waypoints,
+        if (waypoints != null) 'waypoints': waypoints,
         'travelmode': 'driving',
       },
     );

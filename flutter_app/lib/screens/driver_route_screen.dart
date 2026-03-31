@@ -176,14 +176,41 @@ class _DriverRouteScreenState extends State<DriverRouteScreen> {
       return;
     }
 
+    String? busLocationParam;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('bus_locations')
+          .doc(widget.busId)
+          .get();
+      
+      if (doc.exists) {
+        final data = doc.data()!;
+        final lat = data['lat'];
+        final lng = data['lng'];
+        if (lat != null && lng != null) {
+          busLocationParam = '$lat,$lng';
+        }
+      }
+    } catch (_) {
+      // Ignore and proceed without live location
+    }
+
     String url =
         'https://www.google.com/maps/dir/?api=1'
         '&origin=${Uri.encodeComponent(start)}'
         '&destination=${Uri.encodeComponent(end)}'
         '&travelmode=driving';
 
+    final List<String> waypointsList = [];
+    if (busLocationParam != null) {
+      waypointsList.add(busLocationParam);
+    }
     if (_stopsList.isNotEmpty) {
-      url += '&waypoints=${_stopsList.map(Uri.encodeComponent).join('|')}';
+      waypointsList.addAll(_stopsList);
+    }
+
+    if (waypointsList.isNotEmpty) {
+      url += '&waypoints=${waypointsList.map(Uri.encodeComponent).join('|')}';
     }
 
     final uri = Uri.parse(url);

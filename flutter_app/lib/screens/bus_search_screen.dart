@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 import '../models/bus_info.dart';
 import 'bus_route_details_screen.dart';
+import 'settings_screen.dart';
 
 class BusSearchScreen extends StatefulWidget {
   const BusSearchScreen({super.key});
@@ -115,7 +117,7 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
   }
 
   /// GET USER LOCATION
-  Future<void> _fetchLocationAndNearbyBuses() async {
+  Future<void> _fetchCurrentAddress() async {
     if (_isFetchingLocation) return;
 
     setState(() {
@@ -131,30 +133,65 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
       }
 
       if (permission == LocationPermission.denied) {
-        setState(() {
-          _errorMessage = 'Location permission denied.';
-        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location permission denied.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         return;
       }
 
       if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          _errorMessage =
-              'Location permission permanently denied. Enable it from settings.';
-        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location permission permanently denied. Enable it from settings.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
 
-      setState(() {
-        _locationLabel =
-            '${position.latitude.toStringAsFixed(3)}, ${position.longitude.toStringAsFixed(3)}';
-      });
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        
+        String streetAddress = '';
+        if (place.thoroughfare != null && place.thoroughfare!.isNotEmpty) {
+          streetAddress += place.thoroughfare!;
+        }
+        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+          if (streetAddress.isNotEmpty) streetAddress += ', ';
+          streetAddress += place.subLocality!;
+        }
+        
+        if (streetAddress.isEmpty) {
+          streetAddress = place.name ?? place.locality ?? '';
+        }
+
+        setState(() {
+          _fromController.text = streetAddress;
+          _locationLabel = streetAddress.isNotEmpty ? streetAddress : 'Address not found';
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to fetch location.';
-      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to fetch address: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -163,6 +200,8 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
       }
     }
   }
+
+  // Logout logic moved to SettingsScreen
 
   Future<void> _searchBusByNumber() async {
     final query = _busSearchController.text.trim();
@@ -320,7 +359,7 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
                       children: [
                         InkWell(
                           borderRadius: BorderRadius.circular(30),
-                          onTap: _fetchLocationAndNearbyBuses,
+                          onTap: _fetchCurrentAddress,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -360,7 +399,16 @@ class _BusSearchScreenState extends State<BusSearchScreen> {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        const Icon(Icons.settings, color: Colors.white70),
+                        IconButton(
+                          icon: const Icon(Icons.settings, color: Colors.white70),
+                          tooltip: 'Settings',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ],
